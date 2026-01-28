@@ -44,7 +44,7 @@ def create_mask(w, h):
 
 
 def vo_homography():
-    dl = GESDataLoader(r'/home/tore/Volume/DSO-TEST/')
+    dl = GESDataLoader(r'/home/tore/Volume/1000x1000_droidtest3/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
@@ -125,7 +125,7 @@ def vo_homography():
     cv2.destroyAllWindows()
 
 def vo_homography_rot():
-    dl = GESDataLoader(r'/home/tore/Volume/1000x1000_droidtest3/')
+    dl = GESDataLoader(r'/home/tore/Volume/homog2/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
@@ -235,5 +235,112 @@ def vo_homography_rot():
 
     cv2.destroyAllWindows()
 
+def ges_test():
+
+    # Bilder laden
+
+    #dl = GESDataLoader("/home/tore/Pictures/3/")
+    dl = GESDataLoader("/home/tore/Volume/homog2/")
+    K = dl.K
+    T = np.array(dl.T_matrices)
+    t = T[:,:,3]
+    w = dl.image_width
+    h = dl.image_height
+    fx = K[0][0]
+    fy = K[1][1]
+    cx = K[0][2]
+    cy = K[1][2]
+    trajectory = [(0.0, 0.0, 0.0)]  # X, Y, Yaw
+
+    m_scale = 3000/dl.lla[0,2]
+
+    mask = create_mask(w,h)
+
+    orb = cv2.ORB_create(4000)
+
+    cv2.namedWindow("Trajektorie")
+    #traj = np.ones((800,800,3),np.uint8)*255
+    traj = cv2.imread("/home/tore/Volume/github/bachelor/src/3_snapshot_01-03-2026_20_06_12.jpeg")
+    x = t[:,2]/m_scale
+    y = -t[:,1]/m_scale
+    for i in range(len(t)):
+        cv2.circle(traj, (int(y[i]+650),int(x[i]+590)), 1, (200,0,0), 2)
+
+    x = 0
+    y = 0
+    img1 = cv2.imread(dl.image_files[0], cv2.IMREAD_GRAYSCALE)
+    for i in range(len(dl.image_files)-1):
+        img2 = cv2.imread(dl.image_files[i], cv2.IMREAD_GRAYSCALE)
+        assert img1 is not None and img2 is not None
+
+
+        # Feature Matching
+
+        k1, d1 = orb.detectAndCompute(img1, mask)
+        k2, d2 = orb.detectAndCompute(img2, mask)
+
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING)
+        matches = bf.knnMatch(d1, d2, k=2)
+        #matches = bf.match(d1, d2)
+
+        good = []
+        for m, n in matches:
+            if m.distance < 0.75 * n.distance:
+                good.append(m)
+
+        if len(good) < 20:
+            raise RuntimeError("Zu wenige Matches")
+
+        good = sorted(good, key=lambda x: x.distance)
+
+        pts1 = np.float32([k1[m.queryIdx].pt for m in good])
+        pts2 = np.float32([k2[m.trainIdx].pt for m in good])
+
+
+        # Pixelverschiebung
+
+        dx_pix = np.median(pts2[:,0] - pts1[:,0])
+        dy_pix = np.median(pts2[:,1] - pts1[:,1])
+        x+=dx_pix
+        y+=dy_pix
+        print("div pix x", dx_pix)
+        print("div pix y", dy_pix)
+
+        height = dl.lla[i,2]
+        x_scale = height / fx
+        y_scale = height / fy
+        dx_m = (dx_pix * x_scale)/m_scale
+        dy_m = (dy_pix * y_scale)/m_scale
+
+        #dx_m = dx_pix * 0.4
+        #dy_m = dy_pix * 0.3
+
+        print("SCALE X",height/fx)
+        print("SCALE Y",height/fy)
+
+
+        # Yaw-Schätzung (ungefähr)
+        angles = []
+        for (p0, p1) in zip(pts1, pts2):
+            v0 = p0 - np.array([cx, cy])
+            v1 = p1 - np.array([cx, cy])
+            ang = np.arctan2(v1[1], v1[0]) - np.arctan2(v0[1], v0[0])
+            angles.append(ang)
+        yaw = np.median(angles)
+
+        # Akkumulieren
+        X_prev, Y_prev, Yaw_prev = trajectory[-1]
+        X_new = X_prev + dx_m
+        Y_new = Y_prev + dy_m
+        Yaw_new = Yaw_prev + yaw
+        trajectory.append((X_new, Y_new, Yaw_new))
+
+        img1 = img2
+
+        cv2.circle(traj, (int(x/10+650), int(y/10+590)), 1, (0, 0, 255), 2)
+        cv2.imshow("Trajektorie", traj)
+        cv2.waitKey(1)
+
 if __name__ == "__main__":
-    vo_homography_rot()
+    #vo_homography_rot()
+    ges_test()

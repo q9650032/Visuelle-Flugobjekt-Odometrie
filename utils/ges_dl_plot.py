@@ -5,7 +5,8 @@ import ges_data_loader_a
 
 # Pfad zu deinem Ordner mit JSON + footage
 #file_path = "/home/tore/Volume/640x480_norot_noh/"
-file_path = "/home/tore/Volume/1000x1000_droidtest3/"
+#file_path = "/home/tore/Volume/1000x1000_droidtest3/"
+file_path = "/home/tore/Volume/homog1/"
 
 # DataLoader initialisieren
 dl = GESDataLoader(file_path)
@@ -19,7 +20,7 @@ for i, p in enumerate(enu):
 
 # Rotationsmatrizen
 T_matrices = np.array(dl.T_matrices)
-R_matrices = T[0:3,0:3]
+R_matrices = T_matrices[0:3,0:3]
 print("\n---- Rotationsmatrizen ----")
 for i, R in enumerate(R_matrices):
     print(f"Frame {i}:\n{R}\n")
