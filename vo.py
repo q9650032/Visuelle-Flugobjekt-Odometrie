@@ -125,7 +125,7 @@ def vo_homography():
     cv2.destroyAllWindows()
 
 def vo_homography_rot():
-    dl = GESDataLoader(r'/home/tore/Volume/DSO-TEST/')
+    dl = GESDataLoader(r'/home/tore/Volume/1000x1000_droidtest3/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
@@ -146,6 +146,8 @@ def vo_homography_rot():
 
     # 2D Pose (SE2)
     cur_pose = np.eye(3)
+    poses = []
+    keyframes = []
     last_keyframe_idx = 0
 
     cv2.namedWindow("Trajectory")
@@ -201,7 +203,8 @@ def vo_homography_rot():
         if scale > 1e-6:
             t = t / scale
 
-        t = t/2.5
+        # Skala (heuristisch)
+        t = t / 2.5
 
         # SE(2)-Delta
         T_delta = np.eye(3)
@@ -219,14 +222,17 @@ def vo_homography_rot():
         x = t_curr[0] / 10 + 500
         y = -t_curr[1] / 10 + 600
 
+        poses.append(cur_pose)
+        keyframes.append(last_keyframe_idx)
         cv2.circle(traj, (int(x), int(y)), 1, (0, 0, 255), 2)
         cv2.imshow("Trajectory", traj)
         cv2.waitKey(1)
 
         img1 = img2
 
-    ges_data_loader_a.export_kitti_poses(cur_pose, "est.txt")
-    cv2.waitKey(0)
+    print(poses)
+    utils.ges_data_loader_a.export_kitti_poses(poses, "est.txt", keyframes)
+
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":

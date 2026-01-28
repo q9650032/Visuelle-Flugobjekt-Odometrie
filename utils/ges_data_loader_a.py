@@ -216,7 +216,7 @@ class GESDataLoader():
         return K
 
 @staticmethod
-def export_kitti_poses(T_matrices, output_path):
+def export_kitti_poses(T_matrices, output_path, frame_id=None):
     """
     Exportiert KITTI-kompatible Ground-Truth-Posen.
 
@@ -229,10 +229,15 @@ def export_kitti_poses(T_matrices, output_path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w") as f:
-        for T in T_matrices:
+        for i,T in enumerate(T_matrices):
             T_3x4 = T[:3, :]  # obere 3x4 Matrix
             row = T_3x4.reshape(-1)  # row-major
-            line = " ".join(f"{v:.9f}" for v in row)
-            f.write(line + "\n")
+            if frame_id == None:
+                values = (f"{v:.9f}" for v in row)
+                line = " ".join(values) + f" {i}\n"
+            else:
+                values = (f"{v:.9f}" for v in row)
+                line = " ".join(values) + f" {frame_id[i]}\n"
+            f.write(line)
 
     print(f"[OK] KITTI-Pose-Datei geschrieben: {output_path}")
