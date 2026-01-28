@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
+import utils.ges_data_loader_a
 from utils.ges_data_loader_a import GESDataLoader
+
 
 def umeyama_alignment(X, Y, with_scale=True):
     """
@@ -223,6 +225,7 @@ def vo_homography_rot():
 
         img1 = img2
 
+    ges_data_loader_a.export_kitti_poses(cur_pose, "est.txt")
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

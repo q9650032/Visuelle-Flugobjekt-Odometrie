@@ -215,27 +215,24 @@ class GESDataLoader():
                       [0,  0,  1]], dtype=np.float32)
         return K
 
-    def export_kitti_poses(self, output_path):
-        """
-        Exportiert KITTI-kompatible Ground-Truth-Posen.
+@staticmethod
+def export_kitti_poses(T_matrices, output_path):
+    """
+    Exportiert KITTI-kompatible Ground-Truth-Posen.
 
-        Format:
-        - eine Zeile pro Frame
-        - 12 Werte (3x4 Matrix)
-        - row-major
-        """
+    Format:
+    - eine Zeile pro Frame
+    - 12 Werte (3x4 Matrix)
+    - row-major
+    """
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if not hasattr(self, "T_matrices"):
-            raise RuntimeError("T_matrices nicht vorhanden. Berechne zuerst RT-Matrizen.")
+    with open(output_path, "w") as f:
+        for T in T_matrices:
+            T_3x4 = T[:3, :]  # obere 3x4 Matrix
+            row = T_3x4.reshape(-1)  # row-major
+            line = " ".join(f"{v:.9f}" for v in row)
+            f.write(line + "\n")
 
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(output_path, "w") as f:
-            for T in self.T_matrices:
-                T_3x4 = T[:3, :]  # obere 3x4 Matrix
-                row = T_3x4.reshape(-1)  # row-major
-                line = " ".join(f"{v:.9f}" for v in row)
-                f.write(line + "\n")
-
-        print(f"[OK] KITTI-Pose-Datei geschrieben: {output_path}")
+    print(f"[OK] KITTI-Pose-Datei geschrieben: {output_path}")
