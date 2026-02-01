@@ -62,10 +62,12 @@ def grid_features(img, grid=4, maxCorners=200):
 
 def vo_KLT():
     MIN_FEATURES = 120
-    dl = GESDataLoader(r'/home/tore/Volume/KLT3/')
+    dl = GESDataLoader(r'/home/tore/Volume/KLT2/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
+    T_world = np.eye(4)
+    yaw_global = 0.0
 
     mask_img = create_mask(w, h)
     #cv2.namedWindow("Mask", cv2.WINDOW_AUTOSIZE)
@@ -104,7 +106,7 @@ def vo_KLT():
     # Create a mask image for drawing purposes
     mask_draw = np.zeros_like(old_frame)
 
-    cur_pose = np.eye(3)  # 2D Pose in X/Y
+    cur_pose = np.eye(4)  # 2D Pose in X/Y
     last_keyframe_idx = 0
 
     for i in range(1, len(dl.image_files)-1):
@@ -137,23 +139,42 @@ def vo_KLT():
             print(f"Frame {i}: zu wenige Punkte ({good_old.shape[0]})")
             continue
 
+
+        theta_img = np.arctan2(M[1,0], M[0,0])
+        yaw = -theta_img
+        yaw_global += yaw      # yaw = relative Rotation
+
+        R_kitti = np.array([
+            [ np.cos(yaw), -np.sin(yaw), 0],
+            [ np.sin(yaw),  np.cos(yaw), 0],
+            [ 0,            0,           1]
+        ])
         # Extrahiere Translation in X/Y
-        tx = M[0,2]
-        ty = M[1,2]
-        if np.linalg.norm([tx, ty]) < 0.5:
+        tx_img = M[0,2]
+        ty_img = M[1,2]
+        if np.linalg.norm([tx_img, ty_img]) < 0.5:
             continue
+        t_kitti = np.array([
+            ty_img,     # vorwärts
+            -tx_img,    # links
+            0
+        ])
 
+        T_local = np.eye(4)
+        T_local[:3,:3] = R_kitti
+        T_local[:3, 3] = t_kitti
 
-        # Akkumulation der 2D-Pose
-        T = np.eye(3)
-        T[:2,:3] = M
-        cur_pose = cur_pose @ T
+        cur_pose = cur_pose @ T_local
+        T_world = T_world @ T_local
+
+        print(f"yaw [deg]: {np.degrees(yaw):.4f}")
+
 
 
         # Trajektorie zeichnen
-        t_curr = cur_pose[:2,2]
-        x = t_curr[0]/10 + 500
-        y = -t_curr[1]/10 + 600
+        t_curr = cur_pose[:3,3]
+        y = -t_curr[0]/10 + 600
+        x = t_curr[1]/10 + 500
         cv2.circle(traj, (int(x), int(y)), 1, (0,0,255), 2)
         cv2.imshow("Trajectory", traj)
         cv2.waitKey(1)
