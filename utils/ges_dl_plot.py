@@ -5,8 +5,8 @@ import ges_data_loader_a
 
 # Pfad zu deinem Ordner mit JSON + footage
 #file_path = "/home/tore/Volume/640x480_norot_noh/"
-#file_path = "/home/tore/Volume/1000x1000_droidtest3/"
-file_path = "/home/tore/Volume/homog1/"
+file_path = "/home/tore/Volume/1000x1000_droidtest3/"
+#file_path = "/home/tore/Volume/homog1/"
 
 # DataLoader initialisieren
 dl = GESDataLoader(file_path)
