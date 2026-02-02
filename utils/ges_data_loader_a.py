@@ -111,8 +111,10 @@ class GESDataLoader():
                 [-1, 0, 0],  # Y_left
                 [0, 1, 0]    # Z_up
             ])
-            R_kitti = R_cam_enu @ A_kitti
-            p_kitti = A_kitti @ p_enu  # Position auch flippen
+            #R_kitti = R_cam_enu @ A_kitti
+            #p_kitti = A_kitti @ p_enu  # Position auch flippen
+            R_kitti = R_cam_enu
+            p_kitti = p_enu
 
             # --- Pose-Matrix für KITTI ---
             T_kitti = np.hstack((R_kitti, p_kitti.reshape(3,1)))
