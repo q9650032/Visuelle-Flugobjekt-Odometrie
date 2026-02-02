@@ -127,8 +127,8 @@ def calc_scale(gt_file="gt.txt", est_file="est.txt"):
     traj_len = trajectory_length(gt_aligned)
 
     plt.figure(figsize=(6,6))
-    plt.plot(gt_aligned[:,1], -gt_aligned[:,0], label="GT")
-    plt.plot(est_aligned[:,1], -est_aligned[:,0], label="EST aligned")
+    plt.plot(gt_aligned[:,0], gt_aligned[:,1], label="GT")
+    plt.plot(est_aligned[:,0], est_aligned[:,1], label="EST aligned")
     plt.axis("equal")
     plt.legend()
     plt.title("TEST KLT")

@@ -125,7 +125,7 @@ def vo_homography():
     cv2.destroyAllWindows()
 
 def vo_homography_rot():
-    dl = GESDataLoader(r'/home/tore/Volume/homog2/')
+    dl = GESDataLoader(r'/home/tore/Volume/1000x1000_droidtest3/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
@@ -136,8 +136,8 @@ def vo_homography_rot():
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
 
     # GT-Trajektorie
-    x_gt = (gt[:,1,3]/10 + 500)
-    y_gt = ((gt[:,2,3]*-1)/10 + 600)
+    x_gt = (gt[:,0,3]/10 + 500)
+    y_gt = (-gt[:,1,3]/10 + 600)
     traj = np.zeros((800, 1000, 3), np.uint8)
     for i in range(len(gt)):
         cv2.circle(traj, (int(x_gt[i]), int(y_gt[i])), 1, (100,0,0), 2)
@@ -188,39 +188,30 @@ def vo_homography_rot():
             img1 = img2
             continue
 
-        # Rotation (oberer linker 2x2 Block)
-        R = H[0:2, 0:2]
+        theta = np.arctan2(H[1,0], H[0,0])
+        yaw = -theta
 
-        # Orthonormalisieren
-        U, _, Vt = np.linalg.svd(R)
-        R = U @ Vt
+        R = np.array([
+            [np.cos(yaw), -np.sin(yaw)],
+            [np.sin(yaw),  np.cos(yaw)]
+        ])
 
-        # Translation
-        t = H[0:2, 2]
+        t_img = H[0:2, 2]
 
-        # Skalenkorrektur
-        scale = np.linalg.norm(R[:, 0])
-        if scale > 1e-6:
-            t = t / scale
+        # Translation korrekt drehen
+        t_world = R @ t_img
 
-        # Skala (heuristisch)
-        t = t / 2.5
-
-        # SE(2)-Delta
         T_delta = np.eye(3)
         T_delta[0:2, 0:2] = R
-        T_delta[0:2, 2] = t
+        T_delta[0:2, 2] = t_world
 
-        # Pose akkumulieren
         cur_pose = cur_pose @ T_delta
 
-        # ==============================
         # Trajektorie zeichnen
-        # ==============================
 
         t_curr = cur_pose[0:2, 2]
-        x = t_curr[0] / 10 + 500
-        y = -t_curr[1] / 10 + 600
+        x = -t_curr[0] / 30 + 500
+        y = -t_curr[1] / 30 + 600
 
         poses.append(cur_pose)
         keyframes.append(last_keyframe_idx)
@@ -342,5 +333,5 @@ def ges_test():
         cv2.waitKey(1)
 
 if __name__ == "__main__":
-    #vo_homography_rot()
-    ges_test()
+    vo_homography_rot()
+    #ges_test()

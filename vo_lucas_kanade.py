@@ -89,8 +89,8 @@ def vo_KLT():
     color = tuple(np.random.randint(0,255,3).tolist())
 
     # Trajektorie vorbereiten
-    x = (-gt[:,1,3]/10 + 500)
-    y = ((-gt[:,2,3])/10 + 600)
+    x = (gt[:,0,3]/10 + 500)
+    y = ((-gt[:,1,3])/10 + 600)
     cv2.namedWindow("Trajectory")
     traj = np.zeros((800, 1000, 3), np.uint8)
 
