@@ -129,7 +129,7 @@ def vo_homography_rot():
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
-
+    T_world = np.eye(4)
     mask_img = create_mask(w, h)
 
     det = cv2.ORB_create(4000)
@@ -151,6 +151,7 @@ def vo_homography_rot():
     last_keyframe_idx = 0
 
     cv2.namedWindow("Trajectory")
+    open("ges_homography_est.txt", "w").close()
 
     for i in range(1, len(dl.image_files) - 1):
         img2 = cv2.imread(dl.image_files[i], cv2.IMREAD_GRAYSCALE)
@@ -207,6 +208,17 @@ def vo_homography_rot():
 
         cur_pose = cur_pose @ T_delta
 
+        T_local = np.eye(4)
+        T_local[:2,:2] = R
+        T_local[:2, 3] = t_world
+        T_world = T_world @ T_local
+        kitti_line = np.zeros((13))
+        kitti_line[0] = int(i)
+        kitti_line[1:] = T_world[:3,:4].reshape(-1)
+        #print(kitti_line)
+        with open("ges_homography_est.txt", "a") as f:
+            np.savetxt(f, kitti_line.reshape(1, -1), fmt="%.6f")
+
         # Trajektorie zeichnen
 
         t_curr = cur_pose[0:2, 2]
@@ -222,7 +234,7 @@ def vo_homography_rot():
         img1 = img2
 
     print(poses)
-    utils.ges_data_loader_a.export_kitti_poses(poses, "est.txt", keyframes)
+    utils.ges_data_loader_a.export_kitti_poses(poses, "ges_est.txt", keyframes)
 
     cv2.destroyAllWindows()
 
