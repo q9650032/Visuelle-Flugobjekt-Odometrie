@@ -2,7 +2,48 @@ import cv2
 import numpy as np
 import utils.ges_data_loader_a
 from utils.ges_data_loader_a import GESDataLoader
+from scipy.optimize import least_squares
 
+def se2_from_pose(T):
+    x = T[0,2]
+    y = T[1,2]
+    theta = np.arctan2(T[1,0], T[0,0])
+    return np.array([x,y,theta])
+
+
+def pose_from_se2(p):
+    x,y,theta = p
+    T = np.eye(3)
+    c = np.cos(theta)
+    s = np.sin(theta)
+    T[:2,:2] = np.array([[c,-s],[s,c]])
+    T[:2,2] = [x,y]
+    return T
+def ba_residuals(params, rel_poses):
+    N = len(rel_poses) + 1
+    poses = params.reshape((N,3))
+    res = []
+
+    for i in range(N-1):
+
+        Ti = pose_from_se2(poses[i])
+        Tj = pose_from_se2(poses[i+1])
+
+        T_est = np.linalg.inv(Ti) @ Tj
+
+        dx_est = T_est[0,2]
+        dy_est = T_est[1,2]
+        dtheta_est = np.arctan2(T_est[1,0], T_est[0,0])
+
+        dx,dy,dtheta = rel_poses[i]
+
+        res.extend([
+            dx_est-dx,
+            dy_est-dy,
+            dtheta_est-dtheta
+        ])
+
+    return res
 
 def umeyama_alignment(X, Y, with_scale=True):
     """
@@ -124,13 +165,42 @@ def vo_homography():
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def run_sliding_BA(all_poses, rel_poses, window=15):
+
+    if len(all_poses) < window+1:
+        return all_poses
+
+    rel_local = rel_poses[-window:]
+    poses_local = all_poses[-(window+1):]
+
+    init = np.array([se2_from_pose(p) for p in poses_local]).flatten()
+
+    result = least_squares(
+        ba_residuals,
+        init,
+        args=(rel_local,),
+        max_nfev=20,
+        loss='huber'
+    )
+
+    opt = result.x.reshape((-1,3))
+
+    for k,p in enumerate(opt):
+        all_poses[-(window+1)+k] = pose_from_se2(p)
+
+    return all_poses
+
 def vo_homography_rot():
     dl = GESDataLoader(r'/home/tore/Volume/1000x1000_droidtest3/')
     gt = np.array(dl.T_matrices)
     w = dl.image_width
     h = dl.image_height
+    K = dl.K
     T_world = np.eye(4)
     mask_img = create_mask(w, h)
+    rel_poses = []
+    all_poses = [np.eye(3)]
+
 
     det = cv2.ORB_create(4000)
     bf = cv2.BFMatcher(cv2.NORM_HAMMING)
@@ -154,6 +224,20 @@ def vo_homography_rot():
     open("ges_homography_est.txt", "w").close()
 
     for i in range(1, len(dl.image_files) - 1):
+
+        # windowed ba
+        if len(all_poses) % 5 == 0:
+            all_poses = run_sliding_BA(all_poses, rel_poses)
+
+            # komplette BA Trajektorie zeichnen
+            for T in all_poses:
+                p = se2_from_pose(T)
+
+                x = -p[0]/30 + 500
+                y = -p[1]/30 + 600
+
+                cv2.circle(traj,(int(x),int(y)),1,(0,255,0),2)
+
         img2 = cv2.imread(dl.image_files[i], cv2.IMREAD_GRAYSCALE)
 
         # Keyframe Auswahl
@@ -197,6 +281,36 @@ def vo_homography_rot():
             [np.sin(yaw),  np.cos(yaw)]
         ])
 
+        v = H[0:2,0]
+        v = v / np.linalg.norm(v)
+
+        R = np.array([
+            [ v[0], -v[1]],
+            [ v[1],  v[0]]
+        ])
+
+        # yaw_H = np.arctan2(H[1,0], H[0,0])
+        # yaw_R = np.arctan2(R[1,0], R[0,0])
+        # yaw_RT = np.arctan2(R.T[1,0], R.T[0,0])
+
+        # print(yaw_H, yaw_R, yaw_RT)
+
+
+        # if np.linalg.det(R) < 0:
+        #     print("det R ", np.linalg.det(R))
+        #     Vt[1,:] *= -1
+        #     R = U @ Vt
+
+
+        A = H[0:2,0:2]
+        U, _, Vt = np.linalg.svd(A)
+        R = U @ Vt
+
+        R = R.T
+
+        #yaw2 = np.arctan2(R[1,0], R[0,0])
+        #print("H vs. R: ", yaw, yaw2)
+
         t_img = H[0:2, 2]
 
         # Translation korrekt drehen
@@ -207,6 +321,14 @@ def vo_homography_rot():
         T_delta[0:2, 2] = t_world
 
         cur_pose = cur_pose @ T_delta
+
+        # Relative Bewegung speichern
+        dx = T_delta[0,2]
+        dy = T_delta[1,2]
+        dtheta = np.arctan2(T_delta[1,0], T_delta[0,0])
+
+        rel_poses.append([dx,dy,dtheta])
+        all_poses.append(cur_pose.copy())
 
         T_local = np.eye(4)
         T_local[:2,:2] = R
@@ -221,6 +343,13 @@ def vo_homography_rot():
 
         # Trajektorie zeichnen
 
+        opt_pose = all_poses[-1]
+        p = se2_from_pose(opt_pose)
+
+        x = -p[0]/30 + 500
+        y = -p[1]/30 + 600
+        cv2.circle(traj,(int(x),int(y)),1,(0,255,0),2)
+
         t_curr = cur_pose[0:2, 2]
         x = -t_curr[0] / 30 + 500
         y = -t_curr[1] / 30 + 600
@@ -233,9 +362,10 @@ def vo_homography_rot():
 
         img1 = img2
 
-    print(poses)
-    utils.ges_data_loader_a.export_kitti_poses(poses, "ges_est.txt", keyframes)
+    #print(poses)
+    #utils.ges_data_loader_a.export_kitti_poses(poses, "ges_est.txt", keyframes)
 
+    cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 def ges_test():
