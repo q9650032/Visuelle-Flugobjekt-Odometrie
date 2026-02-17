@@ -4,7 +4,7 @@ from ges_data_loader_a import GESDataLoader
 import ges_data_loader_a
 
 # Pfad zu deinem Ordner mit JSON + footage
-file_path = "/home/tore/Volume/TestSetup2/"
+file_path = "/home/tore/Volume/TestSetup1/"
 
 # DataLoader initialisieren
 dl = GESDataLoader(file_path)
@@ -38,7 +38,7 @@ ax.set_title('Flugbahn in ENU-Koordinaten')
 ax.grid(True)
 ax.axis('equal')
 ax.legend()
-plt.show()
 plt.savefig(file_path+"gt.png")
+plt.show()
 
 ges_data_loader_a.export_kitti_poses(T_matrices, file_path+"gt.txt")

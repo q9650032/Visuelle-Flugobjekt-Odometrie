@@ -116,7 +116,7 @@ def vo_KLT():
 
         R_raw = H[0:2, 0:2]
 
-        # Orthonormalisieren (sehr wichtig!)
+        # Orthonormalisieren
         U, _, Vt = np.linalg.svd(R_raw)
         R = U @ Vt
 
